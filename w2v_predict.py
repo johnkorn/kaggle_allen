@@ -63,11 +63,10 @@ if __name__ == '__main__':
     data = pd.read_csv('data/' + args.fname, sep = '\t' )
     
     #read model
-
-    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
-    
+    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)   
     model = gensim.models.Word2Vec.load_word2vec_format('data/GoogleNews-vectors-negative300.bin.gz', binary=True)
     
+    # tests
     model.most_similar(positive=['woman', 'king'], negative=['man'], topn=1)
     model.doesnt_match("breakfast cereal dinner lunch".split())
     model.similarity('woman', 'man')
@@ -77,9 +76,9 @@ if __name__ == '__main__':
 #         for line in f:    
 #             l = line.split()
 #             word2vec[l[0]] = map(float, l[1:])
-#     
-#     #predict
-#     pred_answs = predict_answers(data, word2vec, args.N)
-#     
-#     #save prediction
-#     pd.DataFrame({'id': list(data['id']),'correctAnswer': pred_answs})[['id', 'correctAnswer']].to_csv('prediction_w2v.csv', index = False)
+    
+    #predict
+    pred_answs = predict_answers(data, model, args.N)
+     
+    #save prediction
+    pd.DataFrame({'id': list(data['id']),'correctAnswer': pred_answs})[['id', 'correctAnswer']].to_csv('prediction_w2v.csv', index = False)
