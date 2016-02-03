@@ -8,10 +8,19 @@ from utils import tokenize
 
 
 def predict_answers(data, word2vec, N):
+    #choose question based on cosine distance
+    scores = get_glove_features(data, word2vec, N)
+    pred_answs = []
+    for score in scores:
+        idx = score.argmax()    
+        pred_answs.append(["A", "B", "C", "D"][idx])
+        
+    return pred_answs
 
+def get_glove_features(data, word2vec, N):
     stop = stopwords.words('english')
 
-    pred_answs = []
+    scores = []
     for i in range(data.shape[0]):
         #calculate word2vec for question
         q_vec = np.zeros(N)
@@ -19,13 +28,13 @@ def predict_answers(data, word2vec, N):
             if w.lower() in word2vec and w.lower() not in stop:
                 q_vec += word2vec[w.lower()]
                 
-                # get all synonyms of the word
-                syns = wn.synsets(w.lower(), pos='n')
-                if len(syns)>0:
-                    for syn in syns:
-                        sw = syn.lemma_names()[0]
-                        if sw.lower() in word2vec and sw.lower() not in stop:
-                            q_vec += word2vec[sw.lower()]
+#                 # get all synonyms of the word
+#                 syns = wn.synsets(w.lower(), pos='n')
+#                 if len(syns)>0:
+#                     for syn in syns:
+#                         sw = syn.lemma_names()[0]
+#                         if sw.lower() in word2vec and sw.lower() not in stop:
+#                             q_vec += word2vec[sw.lower()]
         
         q_vec = q_vec / linalg.norm(q_vec)
     
@@ -58,17 +67,15 @@ def predict_answers(data, word2vec, N):
         B_vec = B_vec / linalg.norm(B_vec)
         C_vec = C_vec / linalg.norm(C_vec)
         D_vec = D_vec / linalg.norm(D_vec)
+                
+        scores.append(np.concatenate((A_vec, B_vec, C_vec, D_vec)).reshape(4, N).dot(q_vec))
         
-        #choose question based on cosine distance
-        idx = np.concatenate((A_vec, B_vec, C_vec, D_vec)).reshape(4, N).dot(q_vec).argmax()
-        pred_answs.append(["A", "B", "C", "D"][idx])
-        
-    return pred_answs
+    return scores
 
 if __name__ == '__main__':
     #parsing input arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('--fname', type=str, default='validation_set.tsv', help='file name with data')
+    parser.add_argument('--fname', type=str, default='training_set.tsv', help='file name with data')
     parser.add_argument('--N', type=int, default= 300, help='embeding size (50, 100, 200, 300 only)')
     args = parser.parse_args()
     
@@ -83,10 +90,25 @@ if __name__ == '__main__':
             l = line.split()
             word2vec[l[0]] = map(float, l[1:])
     
-    #predict
-    print("predicting...")
-    pred_answs = predict_answers(data, word2vec, args.N)
+    ##predict
+    #print("predicting...")
+    #pred_answs = predict_answers(data, word2vec, args.N)
     
-    #save prediction
-    pd.DataFrame({'id': list(data['id']),'correctAnswer': pred_answs})[['id', 'correctAnswer']].to_csv('prediction_glove_syns.csv', index = False)
+#     #test the model
+#     print('testing...')
+#     results = pd.DataFrame({'id': list(data['id']),'correctAnswer': pred_answs})[['id', 'correctAnswer']]
+#     score=0.0
+#     for i in range(data.shape[0]):
+#         if data['correctAnswer'][i]==results['correctAnswer'][i]:
+#             score+=1
+#     score = score/data.shape[0]
+#     print('The score is: %.2f' % score)
+    
+    #save features
+    print('saving features...')
+    features = np.array(get_glove_features(data, word2vec, args.N))
+    pd.DataFrame({'id': list(data['id']),'fA': features[:,0], 'fB': features[:,1], 'fC': features[:,2], 'fD': features[:,3]})[['id', 'fA', 'fB', 'fC', 'fD']].to_csv('features_glove.csv', index = False)
+    
+    ##save prediction
+    #pd.DataFrame({'id': list(data['id']),'correctAnswer': pred_answs})[['id', 'correctAnswer']].to_csv('prediction_glove_syns.csv', index = False)
     print("done...")
